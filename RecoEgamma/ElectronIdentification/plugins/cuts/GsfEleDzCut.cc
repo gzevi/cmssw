@@ -18,7 +18,8 @@ public:
   }
 
 private:  
-  const double _dzCutValueEB,_dzCutValueEE,_barrelCutOff;
+  const double _dzCutValueEB,_dzCutValueEE;
+  const double _barrelCutOff=1.479;
   edm::Handle<reco::VertexCollection> _vtxs;
 };
 
@@ -29,20 +30,25 @@ DEFINE_EDM_PLUGIN(CutApplicatorFactory,
 GsfEleDzCut::GsfEleDzCut(const edm::ParameterSet& c) :
   CutApplicatorWithEventContentBase(c),
   _dzCutValueEB(c.getParameter<double>("dzCutValueEB")),
-  _dzCutValueEE(c.getParameter<double>("dzCutValueEE")),
-  _barrelCutOff(c.getParameter<double>("barrelCutOff")) {
+  _dzCutValueEE(c.getParameter<double>("dzCutValueEE")) {
   edm::InputTag vertextag = c.getParameter<edm::InputTag>("vertexSrc");
+  edm::InputTag vertextagMA = c.getParameter<edm::InputTag>("vertexSrcMiniAOD");
   contentTags_.emplace("vertices",vertextag);
+  contentTags_.emplace("verticesMA",vertextagMA);
 }
 
 void GsfEleDzCut::setConsumes(edm::ConsumesCollector& cc) {
-  auto vtcs = 
-    cc.consumes<reco::VertexCollection>(contentTags_["vertices"]);
+  auto vtcs = cc.mayConsume<reco::VertexCollection>(contentTags_["vertices"]);
+  auto vtcsMA = cc.mayConsume<reco::VertexCollection>(contentTags_["verticesMA"]);
   contentTokens_.emplace("vertices",vtcs);
+  contentTokens_.emplace("verticesMA",vtcsMA);
 }
 
 void GsfEleDzCut::getEventContent(const edm::EventBase& ev) {    
+ // First try AOD, then go to miniAOD. Use the same Handle since collection class is the same.
   ev.getByLabel(contentTags_["vertices"],_vtxs);
+  if (!_vtxs.isValid())
+    ev.getByLabel(contentTags_["verticesMA"],_vtxs);
 }
 
 CutApplicatorBase::result_type 
